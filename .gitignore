@@ -1,0 +1,20 @@
+node_modules/
+dist/
+.env
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.egg-info/
+.DS_Store
+
+# Практики в разработке (раскомментируйте, когда будете пушить)
+backend/practices/spam_classifier.py
+backend/practices/image_recognition.py
+backend/practices/sentiment_analysis.py
+backend/practices/data_compression.py
+backend/practices/image_representation.py
+backend/practices/recommender_system.py
+
+#Файлы с описанием методической составляющей практик
+методики практик/
