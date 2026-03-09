@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
 import { Heading, Text, Button } from './ui'
 
@@ -24,7 +25,6 @@ export default function ResultDisplay({ result, loading, error }) {
 
   return (
     <div className="space-y-6 mt-6">
-      {/* Metric + summary */}
       {(result.metric != null || result.message) && (
         <div className="flex items-baseline gap-3">
           {typeof result.metric === 'number' && (
@@ -36,7 +36,6 @@ export default function ResultDisplay({ result, loading, error }) {
         </div>
       )}
 
-      {/* Train/Test split */}
       {result.train_size != null && result.test_size != null && (
         <TrainTestSplit
           trainSize={result.train_size}
@@ -45,14 +44,12 @@ export default function ResultDisplay({ result, loading, error }) {
         />
       )}
 
-      {/* Stdout (engineer mode) */}
       {result.stdout && (
         <pre className="bg-slate-900 text-slate-100 rounded-lg p-4 text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto">
           {result.stdout}
         </pre>
       )}
 
-      {/* Confusion Matrix */}
       {result.confusion_matrix && result.confusion_matrix.length === 2 && (
         <ConfusionMatrix
           matrix={result.confusion_matrix}
@@ -61,7 +58,6 @@ export default function ResultDisplay({ result, loading, error }) {
         />
       )}
 
-      {/* Examples */}
       {result.examples_incorrect?.length > 0 && (
         <ExamplesBlock
           title="Где модель ошибается"
@@ -77,26 +73,20 @@ export default function ResultDisplay({ result, loading, error }) {
         />
       )}
 
-      {/* Model Insights */}
       {result.model_insights && <ModelInsights insights={result.model_insights} />}
 
-      {/* Word highlights (NLP) */}
       {result.word_highlights?.length > 0 && (
         <WordHighlights highlights={result.word_highlights} />
       )}
 
-      {/* Test images (CV) */}
       {result.test_images?.length > 0 && <TestImages images={result.test_images} />}
 
-      {/* kNN Neighbors (CV) */}
       {result.neighbors && <NeighborsView data={result.neighbors} />}
 
-      {/* Forward Process (diffusion context) */}
       {result.forward_steps?.length > 0 && (
         <ForwardProcessStrip steps={result.forward_steps} />
       )}
 
-      {/* Generation Steps (animated canvas) */}
       {result.generation_steps?.length > 0 && (
         <GenerationSteps
           steps={result.generation_steps}
@@ -106,7 +96,6 @@ export default function ResultDisplay({ result, loading, error }) {
         />
       )}
 
-      {/* Original vs Reconstructed (Generative) */}
       {result.original_images && result.reconstructed_images && (
         <ReconstructionView
           originals={result.original_images}
@@ -114,12 +103,14 @@ export default function ResultDisplay({ result, loading, error }) {
         />
       )}
 
-      {/* Recommendation explanations */}
       {result.recommendation_explanations?.length > 0 && (
         <RecommendationExplanations explanations={result.recommendation_explanations} />
       )}
 
-      {/* Chart */}
+      {result.mode && result.recognition && (
+        <TrickTheAIView result={result} />
+      )}
+
       {result.chartData && (
         <div>
           <ChartView chartData={result.chartData} />
@@ -133,8 +124,6 @@ export default function ResultDisplay({ result, loading, error }) {
     </div>
   )
 }
-
-/* ─── Train/Test Split ─── */
 
 function TrainTestSplit({ trainSize, testSize, totalSamples }) {
   const trainPct = Math.round((trainSize / (trainSize + testSize)) * 100)
@@ -166,8 +155,6 @@ function TrainTestSplit({ trainSize, testSize, totalSamples }) {
     </div>
   )
 }
-
-/* ─── Confusion Matrix ─── */
 
 function ConfusionMatrix({ matrix, errorsCount, labels }) {
   if (!matrix || matrix.length !== 2) return null
@@ -223,8 +210,6 @@ function ConfusionMatrix({ matrix, errorsCount, labels }) {
   )
 }
 
-/* ─── Examples Block ─── */
-
 function ExamplesBlock({ title, examples, variant }) {
   const borderColor = variant === 'error' ? 'border-red-200' : 'border-green-200'
   const bgColor = variant === 'error' ? 'bg-red-50' : 'bg-green-50'
@@ -260,8 +245,6 @@ function ExamplesBlock({ title, examples, variant }) {
     </div>
   )
 }
-
-/* ─── Model Insights ─── */
 
 function ModelInsights({ insights }) {
   if (!insights) return null
@@ -319,8 +302,6 @@ function FeatureBar({ feature, weight, color, maxWeight }) {
   )
 }
 
-/* ─── Word Highlights (NLP) ─── */
-
 function WordHighlights({ highlights }) {
   return (
     <div className="bg-slate-50 rounded-lg p-4">
@@ -360,8 +341,6 @@ function WordHighlights({ highlights }) {
     </div>
   )
 }
-
-/* ─── Test Images (CV) ─── */
 
 function TestImages({ images }) {
   return (
@@ -442,8 +421,6 @@ function PixelGrid({ pixels, size = 8, cellSize = 6, tooltipFn }) {
   )
 }
 
-/* ─── kNN Neighbors (CV) ─── */
-
 function NeighborsView({ data }) {
   if (!data) return null
 
@@ -474,8 +451,6 @@ function NeighborsView({ data }) {
   )
 }
 
-/* ─── Reconstruction View (Generative) ─── */
-
 function ReconstructionView({ originals, reconstructed }) {
   return (
     <div className="bg-slate-50 rounded-lg p-4">
@@ -503,8 +478,6 @@ function ReconstructionView({ originals, reconstructed }) {
   )
 }
 
-/* ─── Recommendation Explanations ─── */
-
 function RecommendationExplanations({ explanations }) {
   return (
     <div className="bg-slate-50 rounded-lg p-4">
@@ -526,8 +499,6 @@ function RecommendationExplanations({ explanations }) {
     </div>
   )
 }
-
-/* ─── Forward Process Strip (diffusion) ─── */
 
 function ForwardProcessStrip({ steps }) {
   if (!steps || steps.length === 0) return null
@@ -552,12 +523,10 @@ function ForwardProcessStrip({ steps }) {
   )
 }
 
-/* ─── Training Examples Strip (responsive, no wrap) ─── */
-
 function TrainingExamplesStrip({ examples, digit }) {
   const containerRef = useRef(null)
   const [visibleCount, setVisibleCount] = useState(7)
-  const itemW = 48 + 12 // cellSize 6 * 8 + gap-3
+  const itemW = 60
 
   useEffect(() => {
     const el = containerRef.current
@@ -586,8 +555,6 @@ function TrainingExamplesStrip({ examples, digit }) {
     </div>
   )
 }
-
-/* ─── Generation Steps (animated canvas) ─── */
 
 function _brightnessLabel(v) {
   if (v > 10) return 'тёмный (похоже на линию)'
@@ -665,7 +632,6 @@ function GenerationSteps({ steps, trainingExamples, digit, targetPixels }) {
         Листайте шаги, чтобы увидеть, как модель постепенно создаёт изображение
       </p>
 
-      {/* Step indicator bar */}
       <div className="mb-4">
         <div className="flex justify-between text-xs text-slate-500 mb-1">
           <span className="font-medium">Шаг {current + 1} из {steps.length}</span>
@@ -679,11 +645,8 @@ function GenerationSteps({ steps, trainingExamples, digit, targetPixels }) {
         </div>
       </div>
 
-      {/* Main content: 50/50 layout */}
       <div className="flex flex-col md:flex-row gap-5 mb-4">
-        {/* LEFT half: images */}
         <div className="md:w-1/2 flex flex-col gap-3 items-center">
-          {/* Block 1: step image + recognizer bar */}
           <div className="flex flex-col items-center gap-2">
             <div className="p-2 bg-white rounded-lg border border-slate-200 shadow-sm">
               <PixelGrid pixels={step.pixels} size={8} cellSize={20} tooltipFn={mainTip} />
@@ -712,7 +675,6 @@ function GenerationSteps({ steps, trainingExamples, digit, targetPixels }) {
             )}
           </div>
 
-          {/* Blocks 2 & 3: diff + nearest (same cellSize as main) */}
           <div className="flex gap-4 justify-center">
             {step.diff_pixels ? (
               <div className="text-center">
@@ -743,10 +705,8 @@ function GenerationSteps({ steps, trainingExamples, digit, targetPixels }) {
           </div>
         </div>
 
-        {/* RIGHT half: structured description + training examples at bottom */}
         <div className="md:w-1/2 flex flex-col min-h-0">
           <div className="bg-white rounded-lg border border-slate-200 p-4 flex-1 flex flex-col gap-3 text-sm">
-            {/* Phase title + description */}
             <div>
               <div className="font-bold text-slate-800">
                 {step.phase_title || step.label}
@@ -758,7 +718,6 @@ function GenerationSteps({ steps, trainingExamples, digit, targetPixels }) {
               )}
             </div>
 
-            {/* Pixels changed */}
             {step.pixels_changed != null && (
               <div className="leading-relaxed">
                 <span className="font-medium text-slate-500">Изменилось с прошлого шага: </span>
@@ -767,7 +726,6 @@ function GenerationSteps({ steps, trainingExamples, digit, targetPixels }) {
               </div>
             )}
 
-            {/* Recognizer info */}
             {step.recognized_as != null && (
               <div className="space-y-1.5 pt-1 border-t border-slate-100">
                 <div>
@@ -783,12 +741,10 @@ function GenerationSteps({ steps, trainingExamples, digit, targetPixels }) {
               </div>
             )}
 
-            {/* Fallback for non-structured steps */}
             {!step.phase_title && step.description && (
               <p className="text-slate-600 leading-relaxed">{step.description}</p>
             )}
 
-            {/* Training examples — 3–10 в ряд по ширине экрана, без переноса */}
             {trainingExamples?.length > 0 && (
               <TrainingExamplesStrip examples={trainingExamples} digit={digit} />
             )}
@@ -796,7 +752,6 @@ function GenerationSteps({ steps, trainingExamples, digit, targetPixels }) {
         </div>
       </div>
 
-      {/* Navigation */}
       <div className="flex flex-col items-center gap-3">
         <div className="flex items-center gap-3">
           <Button
@@ -893,8 +848,6 @@ function DiffPixelGrid({ pixels, size = 8, cellSize = 8, tooltipFn }) {
   )
 }
 
-/* ─── Chart View ─── */
-
 function ChartView({ chartData }) {
   if (!chartData || !chartData.data || chartData.data.length === 0) return null
 
@@ -922,6 +875,243 @@ function ChartView({ chartData }) {
           />
         </ChartComponent>
       </ResponsiveContainer>
+    </div>
+  )
+}
+
+
+function TrickTheAIView({ result }) {
+  const rec = result.recognition || {}
+  const top5 = rec.top5 || []
+  const xai = result.xai || null
+  const [hoveredCell, setHoveredCell] = useState(null)
+  const formatClassScore = (score) => {
+    const num = Number(score ?? 0)
+    if (!Number.isFinite(num)) return '0%'
+    return num < 1 ? `${num.toFixed(2)}%` : `${Math.round(num)}%`
+  }
+  const img = result.image_b64
+    ? (String(result.image_b64).startsWith('data:') ? result.image_b64 : `data:image/jpeg;base64,${result.image_b64}`)
+    : null
+  const xaiImg = xai?.overlay_b64
+    ? (String(xai.overlay_b64).startsWith('data:') ? xai.overlay_b64 : `data:image/jpeg;base64,${xai.overlay_b64}`)
+    : null
+
+  const [tooltipRect, setTooltipRect] = useState(null)
+  const canvasTopRef = useRef(null)
+  const canvasBottomRef = useRef(null)
+  const [canvasH, setCanvasH] = useState(320)
+  const xaiContainerRef = useRef(null)
+  const xaiImgRef = useRef(null)
+  const [imgRect, setImgRect] = useState(null)
+
+  const measureCanvas = () => {
+    const topEl = canvasTopRef.current
+    const botEl = canvasBottomRef.current
+    if (!topEl || !botEl) return
+    const t = topEl.getBoundingClientRect().bottom
+    const b = botEl.getBoundingClientRect().bottom
+    const h = Math.max(200, Math.round(b - t))
+    setCanvasH(h)
+  }
+
+  const measureImgRect = () => {
+    const imgEl = xaiImgRef.current
+    const containerEl = xaiContainerRef.current
+    if (!imgEl || !containerEl) return
+    const cRect = containerEl.getBoundingClientRect()
+    const natW = imgEl.naturalWidth || 1
+    const natH = imgEl.naturalHeight || 1
+    const scale = Math.min(cRect.width / natW, cRect.height / natH)
+    const rw = natW * scale
+    const rh = natH * scale
+    const rx = (cRect.width - rw) / 2
+    const ry = (cRect.height - rh) / 2
+    setImgRect({ left: rx, top: ry, width: rw, height: rh })
+  }
+
+  useEffect(() => {
+    measureCanvas()
+    const ro = new ResizeObserver(() => { measureCanvas(); measureImgRect() })
+    if (canvasTopRef.current) ro.observe(canvasTopRef.current)
+    if (canvasBottomRef.current) ro.observe(canvasBottomRef.current)
+    if (xaiContainerRef.current) ro.observe(xaiContainerRef.current)
+    return () => ro.disconnect()
+  }, [rec, xai])
+
+  const handleCellEnter = (cell, ev) => {
+    setHoveredCell(cell)
+    setTooltipRect({ left: ev.clientX, top: ev.clientY })
+  }
+
+  const handleCellLeave = () => {
+    setHoveredCell(null)
+    setTooltipRect(null)
+  }
+
+  return (
+    <div
+      className="bg-slate-50 rounded-lg p-4 border border-slate-200"
+      onMouseLeave={() => { setHoveredCell(null); setTooltipRect(null) }}
+    >
+      <Heading as="h4" level="block" className="mb-2">
+        Результат распознавания
+      </Heading>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          {xaiImg ? (
+            <div>
+              <Text variant="body" className="font-medium text-slate-600 mb-8">
+              </Text>
+              <div
+                ref={xaiContainerRef}
+                className="rounded-md overflow-hidden relative"
+                style={{ height: canvasH }}
+              >
+                <img
+                  ref={xaiImgRef}
+                  src={xaiImg}
+                  alt="xai-overlay"
+                  className="w-full h-full object-contain opacity-65"
+                  onLoad={measureImgRect}
+                />
+                {!!xai?.grid && Array.isArray(xai?.cells) && xai.cells.length > 0 && imgRect && (
+                  <div
+                    className="absolute grid"
+                    style={{
+                      left: imgRect.left,
+                      top: imgRect.top,
+                      width: imgRect.width,
+                      height: imgRect.height,
+                      gridTemplateColumns: `repeat(${xai.grid}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {xai.cells.map((cell) => {
+                      const alpha = Math.min(0.65, Math.max(0.08, Number(cell.impact_norm || 0) * 0.65))
+                      return (
+                        <div
+                          key={`${cell.gx}-${cell.gy}`}
+                          className="relative"
+                          onMouseEnter={(e) => handleCellEnter(cell, e)}
+                          onMouseLeave={handleCellLeave}
+                        >
+                          <button
+                            type="button"
+                            className="w-full h-full border border-white/70 cursor-help"
+                            style={{ backgroundColor: `rgba(220, 38, 38, ${alpha})` }}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            img ? (
+              <div className="w-[200px] h-[200px] bg-white border border-slate-200 rounded-md overflow-hidden shrink-0">
+                <img src={img} alt="uploaded" className="w-full h-full object-contain" />
+              </div>
+            ) : (
+              <Text variant="mutedLight">Изображение отсутствует</Text>
+            )
+          )}
+        </div>
+        <div className="space-y-2">
+          <Text variant="body">
+            <span className="font-medium text-slate-600">Топ-1: </span>
+            <span className="font-semibold text-slate-800">{rec.top1_label || 'unknown'}</span>
+            {' '}({formatClassScore(rec.top1_score ?? 0)})
+          </Text>
+          {rec.top1_label_en && (
+            <Text variant="muted" className="text-xs">
+              Оригинальная метка модели: {rec.top1_label_en}
+            </Text>
+          )}
+          <div ref={canvasTopRef} />
+          {top5.length > 0 && (
+            <div className="space-y-1">
+              {top5.map((row, i) => (
+                <div key={`${row.label}-${i}`} className="py-1 border-b border-slate-100 last:border-b-0">
+                  <div className="flex justify-between text-sm text-slate-600">
+                    <span className="relative group inline-flex pb-1">
+                      {`${i + 1}. `}
+                      {row.wiki_url ? (
+                        <a
+                          href={row.wiki_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-700 hover:underline"
+                        >
+                          {row.label}
+                        </a>
+                      ) : (
+                        <span>{row.label}</span>
+                      )}
+
+                      {row.wiki_url && (row.wiki_extract || row.wiki_image) && (
+                        <div className="absolute left-0 top-full z-20 hidden group-hover:block w-[520px] bg-white border border-slate-200 rounded-lg shadow-xl p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-semibold text-slate-800 mb-1">
+                                {row.label}
+                              </div>
+                              {row.label_en && row.label_en !== row.label && (
+                                <div className="text-xs text-slate-500 mb-1">
+                                  {row.label_en}
+                                </div>
+                              )}
+                              {row.wiki_extract && (
+                                <p className="text-xs text-slate-600 leading-relaxed">
+                                  {row.wiki_extract}
+                                </p>
+                              )}
+                            </div>
+                            {row.wiki_image && (
+                              <div className="w-40 h-40 rounded border border-slate-200 overflow-hidden bg-slate-50 shrink-0 self-center">
+                                <img src={row.wiki_image} alt={row.label} className="w-full h-full object-cover" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-3 pt-2 border-t border-slate-100">
+                            <a
+                              href={row.wiki_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-block text-xs px-2.5 py-1.5 rounded-md bg-slate-800 text-white hover:bg-slate-700"
+                            >
+                              Посмотреть на Wiki
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                    </span>
+                    <span className="font-mono">{formatClassScore(row.score)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {xai?.note && (
+            <Text variant="body" className="text-sm text-slate-700 leading-relaxed mt-6">
+              {xai.note}
+            </Text>
+          )}
+          <div ref={canvasBottomRef} />
+        </div>
+      </div>
+      {hoveredCell?.reason && tooltipRect && typeof window !== 'undefined' && createPortal(
+        <div
+          className="fixed z-[9999] min-w-[360px] max-w-[420px] p-3 bg-white border border-slate-200 rounded-lg shadow-xl text-sm text-slate-700 leading-relaxed pointer-events-none"
+          style={{
+            left: tooltipRect.left,
+            top: tooltipRect.top,
+          }}
+        >
+          {hoveredCell.reason}
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

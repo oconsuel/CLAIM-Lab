@@ -5,7 +5,7 @@
 ## Стек
 
 - **Frontend:** React (Vite) + Tailwind CSS + Recharts + Monaco Editor
-- **Backend:** FastAPI + scikit-learn + NumPy
+- **Backend:** FastAPI + scikit-learn + NumPy + Pillow
 - **Деплой:** Docker Compose + Nginx
 
 ## Быстрый старт (разработка)
@@ -42,20 +42,21 @@ docker compose up --build
 
 ```
 CLAIM-Lab/
-├── frontend/              # React SPA
+├── frontend/
 │   ├── src/
-│   │   ├── components/    # UI компоненты (режимы, графики)
-│   │   │   └── ui/        # Базовые UI-компоненты (Heading, Text, Button)
-│   │   ├── pages/         # Каталог, страница практики
-│   │   ├── data/          # Описания практик (JS)
-│   │   └── api.js         # API клиент
+│   │   ├── components/
+│   │   │   └── ui/
+│   │   ├── pages/
+│   │   ├── data/
+│   │   └── api.js
 │   └── Dockerfile
-├── backend/               # FastAPI сервер
-│   ├── main.py            # Эндпоинты API
-│   ├── practices/         # Логика каждой практики
-│   │   ├── base.py        # Базовый класс + песочница
-│   │   ├── dataset.py     # Загрузка данных (Digits, Spam и др.)
-│   │   └── image_generation.py
+├── backend/
+│   ├── main.py
+│   ├── practices/
+│   │   ├── base.py
+│   │   ├── dataset.py
+│   │   ├── image_generation.py
+│   │   └── trick_the_ai.py
 │   └── Dockerfile
 ├── docker-compose.yml
 ├── nginx.conf
@@ -64,33 +65,21 @@ CLAIM-Lab/
 
 ## Практики
 
-**В текущей версии доступна:**
-
-| # | Название | Направление |
-|---|---------|-------------|
-| 1 | Генерация изображений | Generative |
-
-*Другие практики (классификация спама, распознавание изображений, анализ тональности и др.) — в разработке.*
-
-## Режимы
-
-- **Начинающий** — ползунки параметров, автоматический запуск модели, 1 метрика + график
-- **Начинающий исследователь** — выбор модели, настройка параметров, таблица сравнения запусков
-- **Начинающий инженер** — Monaco Editor с шаблоном кода, безопасное выполнение на backend
+| # | Название | Описание |
+|---|----------|----------|
+| 1 | Генерация изображений | Диффузионная модель создаёт цифру из шума — шаг за шагом |
+| 2 | Обмани ИИ | Загрузите изображение, распознайте его через ИИ и изучите XAI-объяснения |
 
 ## API
 
 ```
-POST /run-beginner    — запуск режима «Начинающий»
-POST /run-researcher  — запуск режима «Начинающий исследователь»
-POST /run-engineer    — запуск кода в песочнице (в разработке)
-GET  /health          — проверка статуса
-GET  /practices/image-generation/dataset-samples?digit=N — примеры цифр из датасета
+POST /run-beginner          — режим «Начинающий»
+POST /run-researcher        — режим «Начинающий исследователь»
+GET  /health                — статус
+GET  /practices/image-generation/dataset-samples?digit=N — примеры цифр
 ```
 
-## Ограничения безопасности
+## Переменные окружения
 
-- Запрещён импорт `os`, `subprocess`, `socket` и др.
-- Таймаут выполнения: 10 секунд
-- Ограничение памяти контейнера: 2 ГБ
-- Размер запроса: до 2 МБ
+- `backend/.env` (не коммитится)
+- **HF_TOKEN** — обязателен для практики «Обмани ИИ» (Hugging Face Inference API)

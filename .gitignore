@@ -8,13 +8,13 @@ venv/
 *.egg-info/
 .DS_Store
 
-# Практики в разработке (раскомментируйте, когда будете пушить)
-backend/practices/spam_classifier.py
-backend/practices/image_recognition.py
-backend/practices/sentiment_analysis.py
-backend/practices/data_compression.py
-backend/practices/image_representation.py
-backend/practices/recommender_system.py
-
-#Файлы с описанием методической составляющей практик
+# Файлы с описанием методической составляющей практик
 методики практик/
+
+computer_vision.py
+data_compression.py
+image_representation.py
+image_recognition.py
+recommender_system.py
+sentiment_analysis.py
+spam_classifier.py

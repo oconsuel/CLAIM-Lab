@@ -1,10 +1,21 @@
 import { useState } from 'react'
 import ParamControl from './ParamControl'
 import ResultDisplay from './ResultDisplay'
+import InDevelopmentNotice from './InDevelopmentNotice'
 import { Heading, Text, Button } from './ui'
 import { runResearcher } from '../api'
 
 export default function ResearcherMode({ practice }) {
+  if (practice.id === 'trick-the-ai') {
+    return (
+      <div>
+        <Heading as="h3" level="block">Начинающий исследователь</Heading>
+        <Text variant="mutedLight" className="mb-5">Выберите модель, настройте параметры и сравните результаты</Text>
+        <InDevelopmentNotice title="Находится в разработке" />
+      </div>
+    )
+  }
+
   const config = practice.researcher
   const [selectedModel, setSelectedModel] = useState(config.models[0].value)
   const [params, setParams] = useState(() => buildDefaults(config.params[config.models[0].value]))

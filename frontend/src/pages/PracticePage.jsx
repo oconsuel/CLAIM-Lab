@@ -60,7 +60,6 @@ export default function PracticePage() {
 
       <Heading as="h1" level="page">{practice.title}</Heading>
 
-      {/* Pedagogy: Goal */}
       {practice.pedagogy?.goal && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <Heading as="h2" level="pedagogy" color="blue">Цель практики</Heading>
@@ -68,7 +67,6 @@ export default function PracticePage() {
         </div>
       )}
 
-      {/* Context */}
       <section className="bg-white rounded-lg border border-slate-200 p-5 mb-6">
         <Heading as="h2" level="section">Контекст</Heading>
         <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
@@ -76,7 +74,6 @@ export default function PracticePage() {
         </div>
       </section>
 
-      {/* Sample Data */}
       <section className="bg-white rounded-lg border border-slate-200 p-5 mb-6">
         <Heading as="h2" level="section">Пример данных</Heading>
         {practice.id === 'image-generation' ? (
@@ -158,7 +155,6 @@ export default function PracticePage() {
         ) : null}
       </section>
 
-      {/* Mode Switch */}
       <div className="flex gap-1 bg-slate-100 rounded-lg p-1 mb-6">
         {modes.map(m => (
           <Button
@@ -172,13 +168,11 @@ export default function PracticePage() {
         ))}
       </div>
 
-      {/* Mode Content */}
       <section className="bg-white rounded-lg border border-slate-200 p-5">
         {mode === 'beginner' && <BeginnerMode practice={practice} />}
         {mode === 'researcher' && <ResearcherMode practice={practice} />}
       </section>
 
-      {/* Pedagogy: Hints + Question */}
       {practice.pedagogy && (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           {practice.pedagogy.hints?.length > 0 && (
