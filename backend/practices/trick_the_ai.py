@@ -29,25 +29,14 @@ WIKI_HEADERS = {"User-Agent": "CLAIM-Lab/1.0 (educational demo)"}
 
 class TrickTheAIPractice(BasePractice):
     def __init__(self):
-        # No preloaded demo images: user always uploads an image.
         self._wiki_cache = {}
         self._summary_cache = {}
-
-    # ── helpers ──────────────────────────────────────────────
 
     def _headers(self):
         token = os.environ.get("HF_TOKEN", HF_TOKEN)
         if not token:
             return {}
         return {"Authorization": f"Bearer {token}"}
-
-    def _image_to_jpeg_b64(self, image_bytes):
-        with Image.open(BytesIO(image_bytes)) as img:
-            img = img.convert("RGB")
-            img.thumbnail((512, 512))
-            buf = BytesIO()
-            img.save(buf, format="JPEG", quality=90)
-            return base64.b64encode(buf.getvalue()).decode("utf-8")
 
     def _decode_image(self, image_data):
         if not image_data or not isinstance(image_data, str):
@@ -158,23 +147,21 @@ class TrickTheAIPractice(BasePractice):
 
         return f"{vertical} {horizontal} область"
 
-    def _build_xai_overlay(self, image_bytes, recognition):
-        target_label_en = str(recognition.get("top1_label_en", "")).strip()
-        target_label_ru = str(recognition.get("top1_label", "")).strip() or target_label_en
-        target_score_pct = float(recognition.get("top1_score", 0.0))
-        if not target_label_en:
-            return None
+    def _run_classify_and_xai(self, image_bytes):
         try:
             with Image.open(BytesIO(image_bytes)) as img:
                 base_img = img.convert("RGB")
         except Exception:
-            return None
+            return (
+                {"top1_label": "unknown", "top1_label_en": "", "top1_score": 0, "top5": []},
+                None,
+            )
 
-        # Keep compute bounded: small image + small grid.
         base_img.thumbnail((256, 256))
         w, h = base_img.size
         if w < 16 or h < 16:
-            return None
+            recognition = self._classify(image_bytes)
+            return (recognition, None)
 
         try:
             grid = int(os.environ.get("XAI_GRID", "3"))
@@ -183,12 +170,10 @@ class TrickTheAIPractice(BasePractice):
         grid = max(2, min(6, grid))
         cell_w = max(1, w // grid)
         cell_h = max(1, h // grid)
-        baseline = max(0.0, float(target_score_pct) / 100.0)
 
         arr = np.asarray(base_img).astype(np.float32)
         avg_color = tuple(int(x) for x in arr.reshape(-1, 3).mean(axis=0))
-        impacts = np.zeros((grid, grid), dtype=np.float32)
-
+        cells_data = []
         for gy in range(grid):
             for gx in range(grid):
                 x0 = gx * cell_w
@@ -201,23 +186,41 @@ class TrickTheAIPractice(BasePractice):
                 patch = Image.new("RGB", (x1 - x0, y1 - y0), avg_color)
                 masked.paste(patch, (x0, y0))
                 masked_bytes = self._pil_to_jpeg_bytes(masked)
-                try:
-                    raw_pred = self._hf_inference(masked_bytes)
-                except Exception:
-                    raw_pred = []
-                perturbed = self._score_for_label(raw_pred, target_label_en)
-                impacts[gy, gx] = max(0.0, baseline - perturbed)
+                cells_data.append((gy, gx, masked_bytes))
 
+        batch_images = [image_bytes] + [mb for _, _, mb in cells_data]
+        try:
+            batch_results = self._hf_inference_batch(batch_images)
+        except Exception:
+            recognition = self._classify(image_bytes)
+            return (recognition, None)
+
+        recognition = self._normalize_hf_result(batch_results[0])
+        target_label_en = str(recognition.get("top1_label_en", "")).strip()
+        target_label_ru = str(recognition.get("top1_label", "")).strip() or target_label_en
+        baseline = max(0.0, float(recognition.get("top1_score", 0)) / 100.0)
+
+        impacts = np.zeros((grid, grid), dtype=np.float32)
+        for i, (gy, gx, _) in enumerate(cells_data):
+            raw_pred = batch_results[i + 1] if i + 1 < len(batch_results) else []
+            perturbed = self._score_for_label(raw_pred, target_label_en)
+            impacts[gy, gx] = max(0.0, baseline - perturbed)
+
+        xai = self._build_xai_overlay_from_impacts(
+            base_img, arr, impacts, recognition, grid, w, h, cell_w, cell_h
+        )
+        return (recognition, xai)
+
+    def _build_xai_overlay_from_impacts(self, base_img, arr, impacts, recognition, grid, w, h, cell_w, cell_h):
+        target_label_ru = str(recognition.get("top1_label", "")).strip()
         max_impact = float(np.max(impacts))
         if max_impact <= 0:
             return None
         heat = impacts / max_impact
 
-        # Upsample cell heatmap to image size.
         heat_img = Image.fromarray((heat * 255).astype(np.uint8), mode="L").resize((w, h), Image.Resampling.BILINEAR)
         heat_arr = np.asarray(heat_img).astype(np.float32) / 255.0
 
-        # Red overlay: stronger red where confidence drops the most.
         alpha = 0.62
         overlay = arr.copy()
         overlay[:, :, 0] = overlay[:, :, 0] * (1.0 - alpha * heat_arr) + 255.0 * (alpha * heat_arr)
@@ -289,8 +292,6 @@ class TrickTheAIPractice(BasePractice):
         return value[:1].upper() + value[1:]
 
     def _primary_term(self, label_en):
-        # ImageNet labels often contain synonyms separated by comma.
-        # Pick a more specific synonym (usually 2+ words), not always the first one.
         raw = str(label_en or "")
         parts = [p.strip() for p in raw.split(",") if p and p.strip()]
         if parts:
@@ -303,7 +304,6 @@ class TrickTheAIPractice(BasePractice):
         else:
             term = raw.strip()
         term = term.replace("_", " ")
-        # Common merged words in ImageNet-style labels.
         term = term.replace("bullterrier", "bull terrier")
         term = term.replace("bullmastiff", "bull mastiff")
         return " ".join(term.split())
@@ -315,7 +315,6 @@ class TrickTheAIPractice(BasePractice):
             variants.append(base.lower())
             variants.append(base.title())
             variants.append(base.replace("-", " "))
-        # unique preserve order
         out = []
         for v in variants:
             if v and v not in out:
@@ -628,6 +627,70 @@ class TrickTheAIPractice(BasePractice):
 
         raise RuntimeError(last_error or "Не удалось классифицировать изображение.")
 
+    def _hf_inference_batch(self, images_bytes_list):
+        if not images_bytes_list:
+            return []
+        headers = self._headers()
+        if not headers:
+            raise RuntimeError("HF_TOKEN не задан. Установите переменную окружения HF_TOKEN.")
+        headers["Accept"] = "application/json"
+        headers["Content-Type"] = "application/json"
+
+        inputs_b64 = [base64.b64encode(b).decode("utf-8") for b in images_bytes_list]
+        payload = {"inputs": inputs_b64}
+
+        last_error = ""
+        custom_url = os.environ.get("HF_API_URL", "").strip()
+        endpoints = [custom_url] if custom_url else []
+        for url in HF_API_URLS:
+            if url not in endpoints:
+                endpoints.append(url)
+
+        for endpoint in endpoints:
+            for attempt in range(3):
+                try:
+                    resp = requests.post(
+                        endpoint,
+                        headers=headers,
+                        json=payload,
+                        timeout=60,
+                    )
+                except Exception as exc:
+                    last_error = f"Сетевой сбой: {exc}"
+                    if attempt < 2:
+                        time.sleep(3)
+                        continue
+                    break
+
+                if resp.status_code == 503:
+                    last_error = "Модель прогревается, повторите запрос через несколько секунд."
+                    if attempt < 2:
+                        time.sleep(3)
+                        continue
+                    break
+
+                if resp.status_code in (404, 410):
+                    last_error = f"Эндпоинт HF ({endpoint}) недоступен: {resp.status_code}"
+                    break
+
+                if resp.status_code >= 400:
+                    try:
+                        err_json = resp.json()
+                        err_text = err_json.get("error") or str(err_json)
+                    except Exception:
+                        err_text = resp.text[:300]
+                    raise RuntimeError(f"Ошибка Hugging Face API ({resp.status_code}): {err_text}")
+
+                data = resp.json()
+                if isinstance(data, dict) and data.get("error"):
+                    raise RuntimeError(f"Hugging Face API: {data.get('error')}")
+
+                if isinstance(data, list) and len(data) == len(images_bytes_list):
+                    return data
+                return []
+
+        raise RuntimeError(last_error or "Не удалось классифицировать изображения (batch).")
+
     def _classify(self, image_bytes):
         data = self._hf_inference(image_bytes)
         return self._normalize_hf_result(data)
@@ -647,113 +710,53 @@ class TrickTheAIPractice(BasePractice):
             "label": "Уверенность модели",
         }
 
-    # ── interface methods ────────────────────────────────────
+    def _image_response(self, metric, message, mode, image_b64="", recognition=None, xai=None, explanation_text="", chart_data=None):
+        rec = recognition or {"top1_label": "unavailable", "top1_score": 0, "top5": []}
+        return {
+            "metric": metric,
+            "message": message,
+            "total_samples": None, "train_size": None, "test_size": None,
+            "errors_count": None, "confusion_matrix": None, "confusion_labels": None,
+            "examples_correct": None, "examples_incorrect": None, "model_insights": None,
+            "generation_steps": None, "mode": mode, "image_b64": image_b64,
+            "recognition": rec, "xai": xai, "level_check": None, "explanation_text": explanation_text,
+            "chartData": chart_data or self._make_chart_data(rec.get("top5", [])),
+        }
 
     def run_beginner(self, params):
         image_b64 = str(params.get("image_b64", ""))
         if not image_b64:
-            return {
-                "metric": 0.0,
-                "message": "Изображение не передано.",
-                "total_samples": None,
-                "train_size": None,
-                "test_size": None,
-                "errors_count": None,
-                "confusion_matrix": None,
-                "confusion_labels": None,
-                "examples_correct": None,
-                "examples_incorrect": None,
-                "model_insights": None,
-                "generation_steps": None,
-                "mode": "image",
-                "image_b64": image_b64,
-                "recognition": {"top1_label": "unavailable", "top1_score": 0, "top5": []},
-                "xai": None,
-                "level_check": None,
-                "explanation_text": "Загрузите изображение и запустите распознавание.",
-                "chartData": self._make_chart_data([]),
-            }
+            return self._image_response(
+                0.0, "Изображение не передано.", "image", image_b64,
+                explanation_text="Загрузите изображение и запустите распознавание.",
+                chart_data=self._make_chart_data([]),
+            )
 
         try:
             image_bytes = self._decode_image(image_b64)
-            recognition = self._classify(image_bytes)
+            recognition, xai = self._run_classify_and_xai(image_bytes)
             top_score = float(recognition.get("top1_score", 0))
             top_score_text = f"{top_score:.2f}" if top_score < 1 else str(int(round(top_score)))
-            xai = self._build_xai_overlay(image_bytes, recognition)
-
-            return {
-                "metric": round(top_score / 100.0, 4),
-                "message": f"ИИ уверен на {top_score_text}%: {recognition.get('top1_label', 'unknown')}",
-                "total_samples": None,
-                "train_size": None,
-                "test_size": None,
-                "errors_count": None,
-                "confusion_matrix": None,
-                "confusion_labels": None,
-                "examples_correct": None,
-                "examples_incorrect": None,
-                "model_insights": None,
-                "generation_steps": None,
-                "mode": "image",
-                "image_b64": image_b64,
-                "recognition": recognition,
-                "xai": xai,
-                "level_check": None,
-                "explanation_text": (
-                    "Модель получила изображение и вернула top-5 наиболее вероятных классов. "
-                    "Подписи дополнительно сопоставляются с Wikimedia, чтобы показать русское название и описание. "
-                    "Тепловая карта XAI показывает, какие области сильнее всего влияют на уверенность модели."
-                ),
-                "chartData": self._make_chart_data(recognition.get("top5", [])),
-            }
+            return self._image_response(
+                round(top_score / 100.0, 4),
+                f"ИИ уверен на {top_score_text}%: {recognition.get('top1_label', 'unknown')}",
+                "image", image_b64, recognition, xai,
+                "Модель получила изображение и вернула top-5 наиболее вероятных классов. "
+                "Подписи дополнительно сопоставляются с Wikimedia. "
+                "Тепловая карта XAI показывает, какие области влияют на уверенность модели.",
+            )
         except Exception as exc:
-            return {
-                "metric": 0.0,
-                "message": f"Не удалось распознать демо-изображение: {exc}",
-                "total_samples": None,
-                "train_size": None,
-                "test_size": None,
-                "errors_count": None,
-                "confusion_matrix": None,
-                "confusion_labels": None,
-                "examples_correct": None,
-                "examples_incorrect": None,
-                "model_insights": None,
-                "generation_steps": None,
-                "mode": "image",
-                "image_b64": image_b64,
-                "recognition": {
-                    "top1_label": "unavailable",
-                    "top1_score": 0,
-                    "top5": [],
-                },
-                "xai": None,
-                "level_check": None,
-                "explanation_text": "Сервис классификации недоступен. Проверьте HF_TOKEN и сеть.",
-                "chartData": self._make_chart_data([]),
-            }
+            return self._image_response(
+                0.0, f"Не удалось распознать: {exc}", "image", image_b64,
+                explanation_text="Сервис классификации недоступен. Проверьте HF_TOKEN и сеть.",
+                chart_data=self._make_chart_data([]),
+            )
 
     def run_researcher(self, model_type, params):
-        _ = model_type  # interface compatibility
+        _ = model_type
         _ = params
-        return {
-            "metric": 0.0,
-            "message": "Режим «Начинающий исследователь» находится в разработке.",
-            "total_samples": None,
-            "train_size": None,
-            "test_size": None,
-            "errors_count": None,
-            "confusion_matrix": None,
-            "confusion_labels": None,
-            "examples_correct": None,
-            "examples_incorrect": None,
-            "model_insights": None,
-            "generation_steps": None,
-            "mode": "stub",
-            "image_b64": "",
-            "recognition": {"top1_label": "unavailable", "top1_score": 0, "top5": []},
-            "xai": None,
-            "level_check": None,
-            "explanation_text": "Этот режим временно недоступен.",
-            "chartData": self._make_chart_data([]),
-        }
+        return self._image_response(
+            0.0, "Режим «Начинающий исследователь» находится в разработке.", "stub",
+            explanation_text="Этот режим временно недоступен.",
+            chart_data=self._make_chart_data([]),
+        )

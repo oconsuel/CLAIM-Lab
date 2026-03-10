@@ -42,20 +42,26 @@ docker compose up --build
 
 ```
 CLAIM-Lab/
-├── frontend/
+├── frontend/              # React SPA
 │   ├── src/
-│   │   ├── components/
-│   │   │   └── ui/
-│   │   ├── pages/
-│   │   ├── data/
-│   │   └── api.js
+│   │   ├── components/    # UI компоненты (режимы, графики)
+│   │   │   └── ui/        # Базовые UI-компоненты (Heading, Text, Button)
+│   │   ├── pages/         # Каталог, страница практики
+│   │   ├── data/          # Описания практик (JS)
+│   │   └── api.js         # API клиент
 │   └── Dockerfile
-├── backend/
-│   ├── main.py
-│   ├── practices/
-│   │   ├── base.py
-│   │   ├── dataset.py
+├── backend/               # FastAPI сервер
+│   ├── main.py            # Эндпоинты API
+│   ├── practices/         # Логика каждой практики
+│   │   ├── base.py        # Базовый класс + песочница
+│   │   ├── dataset.py     # Загрузка данных
+│   │   ├── spam_classifier.py
+│   │   ├── image_recognition.py
+│   │   ├── sentiment_analysis.py
+│   │   ├── data_compression.py
+│   │   ├── image_representation.py
 │   │   ├── image_generation.py
+│   │   ├── recommender_system.py
 │   │   └── trick_the_ai.py
 │   └── Dockerfile
 ├── docker-compose.yml
@@ -81,5 +87,4 @@ GET  /practices/image-generation/dataset-samples?digit=N — примеры ци
 
 ## Переменные окружения
 
-- `backend/.env` (не коммитится)
 - **HF_TOKEN** — обязателен для практики «Обмани ИИ» (Hugging Face Inference API)

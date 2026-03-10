@@ -5,6 +5,7 @@ import BeginnerMode from '../components/BeginnerMode'
 import ResearcherMode from '../components/ResearcherMode'
 import PixelGrid from '../components/PixelGrid'
 import { Heading, Text, Button } from '../components/ui'
+import VisionModelsExplorer from '../components/VisionModelsExplorer'
 import { fetchDatasetSamples } from '../api'
 
 const modes = [
@@ -72,6 +73,7 @@ export default function PracticePage() {
         <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
           {practice.context}
         </div>
+        {practice.id === 'trick-the-ai' && <VisionModelsExplorer />}
       </section>
 
       <section className="bg-white rounded-lg border border-slate-200 p-5 mb-6">

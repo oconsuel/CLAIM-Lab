@@ -1,3 +1,6 @@
+import asyncio
+from functools import partial
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -80,7 +83,8 @@ async def run_beginner(req: BeginnerRequest):
     practice = registry.get(req.practice_id)
     if not practice:
         return {"metric": 0, "message": "Практика не найдена"}
-    return practice.run_beginner(req.params)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, partial(practice.run_beginner, req.params))
 
 
 @app.post("/run-researcher")
@@ -88,7 +92,8 @@ async def run_researcher(req: ResearcherRequest):
     practice = registry.get(req.practice_id)
     if not practice:
         return {"metric": 0, "message": "Практика не найдена"}
-    return practice.run_researcher(req.model_type, req.params)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, partial(practice.run_researcher, req.model_type, req.params))
 
 
 @app.post("/run-engineer")

@@ -961,8 +961,6 @@ function TrickTheAIView({ result }) {
         <div>
           {xaiImg ? (
             <div>
-              <Text variant="body" className="font-medium text-slate-600 mb-8">
-              </Text>
               <div
                 ref={xaiContainerRef}
                 className="rounded-md overflow-hidden relative"
@@ -1056,7 +1054,7 @@ function TrickTheAIView({ result }) {
                               <div className="text-sm font-semibold text-slate-800 mb-1">
                                 {row.label}
                               </div>
-                              {row.label_en && row.label_en !== row.label && (
+                              {row.label_en && (
                                 <div className="text-xs text-slate-500 mb-1">
                                   {row.label_en}
                                 </div>

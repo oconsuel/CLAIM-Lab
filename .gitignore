@@ -11,6 +11,7 @@ venv/
 # Файлы с описанием методической составляющей практик
 методики практик/
 
+# Файлы практик, которые еще не реализованы
 computer_vision.py
 data_compression.py
 image_representation.py
@@ -18,3 +19,6 @@ image_recognition.py
 recommender_system.py
 sentiment_analysis.py
 spam_classifier.py
+
+# Блок тестирования (CSV)
+loadtest/
