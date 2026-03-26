@@ -1,6 +1,6 @@
 services:
   backend:
-    build: ./backend
+    image: ghcr.io/oconsuel/claim-lab-backend:latest
     container_name: claim-lab-backend
     restart: unless-stopped
     ports:
@@ -19,7 +19,7 @@ services:
       - admin_data:/data
 
   frontend:
-    build: ./frontend
+    image: ghcr.io/oconsuel/claim-lab-frontend:latest
     container_name: claim-lab-frontend
     restart: unless-stopped
     ports:
