@@ -35,3 +35,13 @@ export async function runEngineer(practiceId, code) {
   if (!res.ok) throw new Error(`Ошибка сервера: ${res.status}`)
   return res.json()
 }
+
+export async function fetchPracticeStatus() {
+  try {
+    const res = await fetch(`${API_BASE}/practices/status`)
+    if (!res.ok) return {}
+    return res.json()
+  } catch {
+    return {}
+  }
+}

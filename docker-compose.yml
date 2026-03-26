@@ -12,6 +12,11 @@ services:
           memory: 1G
     environment:
       - PYTHONUNBUFFERED=1
+      - ADMIN_DB_PATH=/data/logs/admin_logs.db
+    env_file:
+      - ./backend/.env
+    volumes:
+      - admin_data:/data
 
   frontend:
     build: ./frontend
@@ -35,3 +40,6 @@ services:
     depends_on:
       - backend
       - frontend
+
+volumes:
+  admin_data:

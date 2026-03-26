@@ -10,15 +10,28 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from practices import registry
+from admin.db import init_db
+from admin.auth import router as auth_router
+from admin.routes import admin_router, public_router
+from admin.middleware import RequestLoggingMiddleware
+from admin.practice_guard import PracticeGuardMiddleware
+
+init_db()
 
 app = FastAPI(title="CLAIM Lab API")
 
+app.add_middleware(PracticeGuardMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
+app.include_router(admin_router)
+app.include_router(public_router)
 
 
 class BeginnerRequest(BaseModel):
@@ -82,7 +95,7 @@ class RunResponse(BaseModel):
 async def run_beginner(req: BeginnerRequest):
     practice = registry.get(req.practice_id)
     if not practice:
-        return {"metric": 0, "message": "Практика не найдена"}
+        return {"metric": 0, "message": "Практикум не найден"}
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, partial(practice.run_beginner, req.params))
 
@@ -91,7 +104,7 @@ async def run_beginner(req: BeginnerRequest):
 async def run_researcher(req: ResearcherRequest):
     practice = registry.get(req.practice_id)
     if not practice:
-        return {"metric": 0, "message": "Практика не найдена"}
+        return {"metric": 0, "message": "Практикум не найден"}
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, partial(practice.run_researcher, req.model_type, req.params))
 

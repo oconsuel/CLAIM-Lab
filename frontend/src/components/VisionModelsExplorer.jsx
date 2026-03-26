@@ -74,7 +74,7 @@ const MODEL_INFO = {
     useCase: 'Классификация, генерация изображений',
     speed: 'Средняя',
     example: 'ViT, DeiT, Swin Transformer',
-    highlight: 'Используется в нашей практике',
+    highlight: 'Используется в нашем практикуме',
   },
   yolo: {
     fullName: 'YOLO — You Only Look Once',

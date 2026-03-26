@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import practices, { categoryColors, categoryLabels } from '../data/practices'
 import { Heading, Text, Button } from '../components/ui'
+import { fetchPracticeStatus } from '../api'
 
 const categories = [
   { key: 'Все', label: 'Все' },
@@ -14,17 +15,23 @@ const categories = [
 
 export default function CatalogPage() {
   const [filter, setFilter] = useState('Все')
+  const [visibility, setVisibility] = useState({})
 
-  const filtered = filter === 'Все'
+  useEffect(() => {
+    fetchPracticeStatus().then(setVisibility)
+  }, [])
+
+  const filtered = (filter === 'Все'
     ? practices
     : practices.filter(p =>
         Array.isArray(p.category) ? p.category.includes(filter) : p.category === filter
       )
+  ).filter(p => visibility[p.id] !== false)
 
   return (
     <div>
-      <Heading as="h1" level="page">Каталог практик</Heading>
-      <Text variant="muted" className="mb-6">Выберите практику и начните изучать ИИ на реальных задачах</Text>
+      <Heading as="h1" level="page">Каталог практикумов</Heading>
+      <Text variant="muted" className="mb-6">Выберите практикум и начните изучать ИИ на реальных задачах</Text>
 
       <div className="flex gap-2 mb-8 flex-wrap">
         {categories.map(cat => (

@@ -8,10 +8,11 @@ venv/
 *.egg-info/
 .DS_Store
 
-# Файлы с описанием методической составляющей практик
+# Файлы с описанием методической составляющей практикумов
 методики практик/
+методики практикумов/
 
-# Файлы практик, которые еще не реализованы
+# Файлы практикумов, которые еще не реализованы
 computer_vision.py
 data_compression.py
 image_representation.py
@@ -22,3 +23,11 @@ spam_classifier.py
 
 # Блок тестирования (CSV)
 loadtest/
+
+# Admin SQLite database
+*.db
+*.db-shm
+*.db-wal
+backend/admin/logs/
+!backend/admin/logs/
+!backend/admin/logs/.gitkeep

@@ -39,6 +39,24 @@ export default function PracticePage() {
   }
 
   useEffect(() => {
+    if (practice?.id) {
+      const key = `practice-visit:${practice.id}`
+      const now = Date.now()
+      const last = Number(sessionStorage.getItem(key) || 0)
+      // In dev StrictMode effects can run twice on mount.
+      // Ignore immediate duplicate within a short window.
+      if (now - last > 800) {
+        sessionStorage.setItem(key, String(now))
+        fetch('/api/track/practice-visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ practice_id: practice.id }),
+        }).catch(() => {})
+      }
+    }
+  }, [practice?.id])
+
+  useEffect(() => {
     if (practice?.id === 'image-generation') {
       loadDatasetSamples(datasetDigit)
     }
@@ -47,7 +65,7 @@ export default function PracticePage() {
   if (!practice) {
     return (
       <div className="text-center py-16">
-        <Heading as="h2" level="card" className="text-xl mb-2">Практика не найдена</Heading>
+        <Heading as="h2" level="card" className="text-xl mb-2">Практикум не найден</Heading>
         <Link to="/" className="text-sm text-blue-600 hover:underline">Вернуться в каталог</Link>
       </div>
     )
@@ -63,7 +81,7 @@ export default function PracticePage() {
 
       {practice.pedagogy?.goal && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <Heading as="h2" level="pedagogy" color="blue">Цель практики</Heading>
+          <Heading as="h2" level="pedagogy" color="blue">Цель практикума</Heading>
           <Text className="text-blue-800">{practice.pedagogy.goal}</Text>
         </div>
       )}
