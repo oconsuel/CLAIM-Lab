@@ -70,7 +70,7 @@ const MODEL_INFO = {
   vit: {
     fullName: 'ViT — Vision Transformer',
     year: '2020',
-    desc: 'Современная архитектура, заимствованная из обработки текста. Разрезает фото на кусочки-«токены» и анализирует связи между ними через механизм внимания.',
+    desc: 'Модель делит фото на кусочки и смотрит, какие кусочки важнее других.',
     useCase: 'Классификация, генерация изображений',
     speed: 'Средняя',
     example: 'ViT, DeiT, Swin Transformer',
@@ -79,7 +79,7 @@ const MODEL_INFO = {
   yolo: {
     fullName: 'YOLO — You Only Look Once',
     year: '2016',
-    desc: 'Архитектура для обнаружения объектов в реальном времени. За один проход сети определяет и класс объекта, и его положение на изображении.',
+    desc: 'Модель быстро находит объект на фото и сразу показывает, где он находится.',
     useCase: 'Видеонаблюдение, автопилот, робототехника',
     speed: 'Очень быстрая (<5 мс)',
     example: 'YOLOv5, YOLOv8, YOLOv11',
@@ -303,7 +303,135 @@ function Arrow({ color }) {
   )
 }
 
-function Stage({ badge, title, vis, desc, color, delay, width = 210 }) {
+function SelectedPatches({ scene, filterCount, size = 112 }) {
+  const g = PORTRAITS[scene]
+  const pal = PALETTES[scene]
+  const n = 8
+  const cell = size / n
+  const patches = []
+  const patchSize = 2
+  const starts = [
+    [1, 1],
+    [1, 4],
+    [3, 2],
+    [4, 5],
+    [5, 1],
+    [5, 4],
+  ]
+  const count = Math.max(1, Math.min(filterCount, starts.length))
+  for (let i = 0; i < count; i++) {
+    const [r0, c0] = starts[i]
+    patches.push(
+      <g key={`p-${i}`}>
+        <rect
+          x={c0 * cell}
+          y={r0 * cell}
+          width={patchSize * cell}
+          height={patchSize * cell}
+          fill="none"
+          stroke="#ff7043"
+          strokeWidth={2}
+          rx={2}
+        />
+      </g>
+    )
+  }
+
+  const bgRects = []
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      bgRects.push(
+        <rect
+          key={`bg-${r}-${c}`}
+          x={c * cell}
+          y={r * cell}
+          width={cell}
+          height={cell}
+          fill={pal[g[r * n + c]] || '#f0e6d8'}
+          opacity={0.9}
+        />
+      )
+    }
+  }
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ borderRadius: 10, border: '2px solid #e0e0f0' }}>
+      {bgRects}
+      {patches}
+    </svg>
+  )
+}
+
+function NeuralNetMini({ color = '#ff7043' }) {
+  const left = [20, 50, 80]
+  const mid = [15, 35, 55, 75, 95]
+  const right = [35, 65]
+
+  const lines = []
+  left.forEach((y1) => {
+    mid.forEach((y2) => {
+      lines.push([25, y1, 60, y2])
+    })
+  })
+  mid.forEach((y1) => {
+    right.forEach((y2) => {
+      lines.push([70, y1, 105, y2])
+    })
+  })
+
+  return (
+    <svg width="130" height="110" viewBox="0 0 130 110">
+      {lines.map((l, i) => (
+        <line key={i} x1={l[0]} y1={l[1]} x2={l[2]} y2={l[3]} stroke={color} opacity="0.35" strokeWidth="1.3" />
+      ))}
+      {left.map((y, i) => <circle key={`l-${i}`} cx="20" cy={y} r="4.5" fill={color} />)}
+      {mid.map((y, i) => <circle key={`m-${i}`} cx="65" cy={y} r="4.2" fill="#ffd2c1" stroke={color} strokeWidth="1.5" />)}
+      {right.map((y, i) => <circle key={`r-${i}`} cx="110" cy={y} r="5.2" fill={color} />)}
+      <text x="8" y="106" fontSize="9" fill="#64748b">детали</text>
+      <text x="95" y="106" fontSize="9" fill="#64748b">классы</text>
+    </svg>
+  )
+}
+
+function CompareOriginalAndEdges({ scene, color }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="text-center">
+        <Portrait scene={scene} size={70} />
+        <div className="text-[10px] text-slate-400 mt-0.5">фото</div>
+      </div>
+      <span className="text-lg font-black" style={{ color }}>→</span>
+      <div className="text-center">
+        <EdgeMap scene={scene} filterIdx={5} size={70} color={color} />
+        <div className="text-[10px] text-slate-400 mt-0.5">упрощённые контуры</div>
+      </div>
+    </div>
+  )
+}
+
+function PartPreview({ scene, x, y, label, size = 64 }) {
+  const rectSize = 16
+  return (
+    <div className="text-center">
+      <div className="relative inline-block overflow-hidden rounded-[10px] border-2 border-[#e0e0f0]">
+        <Portrait scene={scene} size={size} />
+        <div
+          className="absolute border-2 border-orange-500 rounded-sm"
+          style={{
+            left: x,
+            top: y,
+            width: rectSize,
+            height: rectSize,
+            background: 'rgba(255, 112, 67, 0.18)',
+          }}
+        />
+      </div>
+      <div className="text-[10px] text-slate-500 mt-1">{label}</div>
+    </div>
+  )
+}
+
+function Stage({ badge, title, vis, desc, color, delay, width = 240 }) {
   return (
     <div className="bg-white rounded-2xl p-4 shrink-0 shadow-md flex flex-col gap-2.5 animate-[popIn_0.35s_ease_both]"
       style={{ borderTop: `4px solid ${color}`, animationDelay: `${delay}s`, width }}>
@@ -322,65 +450,52 @@ function useCnnStages(scene, filterCount, color) {
     const sc2 = SCENES[scene]
     return [
       {
-        badge: 'Шаг 1', title: 'Фото — это таблица чисел',
+        badge: 'Шаг 1', title: 'Исходное изображение',
         vis: (
-          <div className="text-center">
-            <Portrait scene={scene} />
-            <div className="text-[11px] text-slate-400 mt-1.5">каждый квадрат = число (цвет пикселя)</div>
+          <div className="flex flex-col items-center text-center">
+            <Portrait scene={scene} size={92} />
+            <div className="text-[11px] text-slate-400 mt-1.5">компьютер видит не «кота», а пиксели</div>
           </div>
         ),
-        desc: 'Компьютер не «видит» кота — он видит сетку чисел. Каждое число — яркость и цвет одного пикселя. 8×8 = 64 числа.',
+        desc: 'Сначала это просто картинка из маленьких клеток.',
       },
       {
-        badge: 'Шаг 2', title: 'Лупы ищут разные детали',
-        vis: (
-          <div className="flex flex-col items-center gap-2.5 w-full">
-            <div className="relative inline-block">
-              <Portrait scene={scene} size={100} />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-[35px] h-[35px] border-[3px] border-white rounded animate-pulse" style={{ boxShadow: `0 0 0 2px ${color}` }} />
-              </div>
-            </div>
-            <div className="flex flex-col gap-1.5 w-full">
-              {Array.from({ length: filterCount }, (_, f) => (
-                <div key={f} className="flex items-center gap-2 bg-slate-50 rounded-lg py-1.5 px-2">
-                  <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: color }} />
-                  <div className="text-xs text-slate-700"><b style={{ color }}>Лупа {f + 1}</b> ищет: {FILTER_NAMES[f % FILTER_NAMES.length]}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ),
-        desc: 'Каждая лупа — маленькая сеточка 3×3. Она медленно проезжает по всему фото. В каждой позиции она спрашивает: «есть ли здесь то, что я ищу?»',
-      },
-      {
-        badge: 'Шаг 3', title: 'Лупы «рисуют» что нашли',
+        badge: 'Шаг 2', title: 'Найдены важные кусочки',
         vis: (
           <div className="flex flex-col items-center gap-2 w-full">
-            <div className="flex gap-2 flex-wrap justify-center">
-              {Array.from({ length: filterCount }, (_, f) => (
-                <div key={f} className="text-center">
-                  <EdgeMap scene={scene} filterIdx={f} color={color} />
-                  <div className="text-[10px] text-slate-500 font-bold mt-1">лупа {f + 1}</div>
-                </div>
-              ))}
+            <div className="flex items-start justify-center gap-2">
+              <PartPreview scene={scene} x={10} y={10} label="ушки" />
+              <PartPreview scene={scene} x={22} y={22} label="глаза" />
+              <PartPreview scene={scene} x={34} y={30} label="контур" />
             </div>
-            <div className="text-[11px] text-slate-400 text-center bg-slate-50 rounded-lg p-1.5">
-              ярко = «нашла!» · темно = «ничего нет»
+            <div className="text-[11px] text-slate-500 text-center bg-slate-50 rounded-lg p-1.5 w-full">
+              из таких фрагментов модель узнаёт объект
             </div>
           </div>
         ),
-        desc: 'Каждая лупа создаёт свой «скетч» — как если бы художник обвёл только то, что его интересует.',
+        desc: 'Это не финальный вывод, а полезные части картинки: уши, глаза, контур.',
       },
       {
-        badge: 'Ответ', title: `Это ${sc2.label}! ${sc2.emoji}`,
+        badge: 'Шаг 3', title: 'Нейросеть собирает итог',
+        vis: (
+          <div className="flex flex-col items-center gap-2 w-full">
+            <NeuralNetMini color={color} />
+            <div className="text-[11px] text-slate-500 text-center bg-slate-50 rounded-lg p-1.5 w-full">
+              объединяет детали и сравнивает с вариантами
+            </div>
+          </div>
+        ),
+        desc: 'Сеть выбирает, кто это: кот, собака или птица.',
+      },
+      {
+        badge: 'Ответ', title: `Результат: ${sc2.label} ${sc2.emoji}`,
         vis: (
           <div className="w-full">
-            <Hint text="💡 Скетчи → средняя яркость → числа → взвешенная сумма → %" color={color} />
+            <Hint text="Проценты показывают уверенность по каждому варианту: кот / собака / птица." color={color} />
             <ResultBars scene={scene} color={color} />
           </div>
         ),
-        desc: 'Все скетчи «сворачиваются» в одно число каждый. Эти числа складываются с весами — и получаются вероятности.',
+        desc: 'Чем выше процент у класса, тем больше модель уверена, что это он.',
       },
     ]
   }, [scene, filterCount, color])
@@ -416,12 +531,12 @@ function useVitStages(scene, patchN, color) {
       {
         badge: 'Шаг 1', title: 'Фото целиком',
         vis: (
-          <div className="text-center">
+          <div className="flex flex-col items-center text-center">
             <Portrait scene={scene} />
-            <div className="text-[11px] text-slate-400 mt-1.5">ViT берёт всё фото сразу</div>
+            <div className="text-[11px] text-slate-400 mt-1.5">модель смотрит на всё фото сразу</div>
           </div>
         ),
-        desc: 'В отличие от CNN — никакого скользящего окна. ViT смотрит на фото целиком и сразу нарезает его на кусочки.',
+        desc: 'Сначала модель получает всю картинку целиком.',
       },
       {
         badge: 'Шаг 2', title: `Режем на ${total} кусочков`,
@@ -431,10 +546,10 @@ function useVitStages(scene, patchN, color) {
               {patchSvgRects}
               {patchOverlays}
             </svg>
-            <div className="text-[11px] text-slate-400 mt-1.5">{patchN}×{patchN} = {total} кусочков-токенов</div>
+            <div className="text-[11px] text-slate-400 mt-1.5">{patchN}×{patchN} = {total} кусочков</div>
           </div>
         ),
-        desc: `Фото нарезается на ${total} одинаковых квадратов. Каждый кусочек разворачивается в строчку чисел. Теперь у нас ${total} «слов» — как в предложении для текстового ИИ.`,
+        desc: `Фото делится на ${total} квадратов. Каждый квадрат модель рассматривает отдельно.`,
       },
       {
         badge: 'Шаг 3', title: 'Кусочки «переговариваются»',
@@ -442,21 +557,21 @@ function useVitStages(scene, patchN, color) {
           <div className="flex flex-col items-center gap-1.5">
             <AttentionVis scene={scene} patchN={patchN} color={color} />
             <div className="text-[11px] text-slate-500 text-center bg-green-50 rounded-lg p-1.5 w-full">
-              толстая стрелка = «сильно интересует»<br />тонкая = «смотрю, но не важно»
+              толстая стрелка = важно<br />тонкая = менее важно
             </div>
           </div>
         ),
-        desc: 'Центральный кусочек смотрит на все остальные и спрашивает: «ты похож на то, что рядом со мной?» Стрелки показывают силу «внимания».',
+        desc: 'Модель сравнивает кусочки между собой и понимает, какие важнее для ответа.',
       },
       {
-        badge: 'Ответ', title: `Это ${sc2.label}! ${sc2.emoji}`,
+        badge: 'Ответ', title: `Результат: ${sc2.label} ${sc2.emoji}`,
         vis: (
           <div className="w-full">
-            <Hint text="💡 Спец. кусочек [1] собрал всё → линейный слой → %" color={color} />
+            <Hint text="Проценты показывают уверенность модели по каждому варианту." color={color} />
             <ResultBars scene={scene} color={color} />
           </div>
         ),
-        desc: 'Первый кусочек [CLS] — специальный «сборщик». Он получил информацию от всех остальных через переговоры. Его итоговый вектор → финальный слой → вероятности.',
+        desc: 'Чем выше процент, тем больше модель уверена в этом варианте.',
       },
     ]
   }, [scene, patchN, color])
@@ -469,12 +584,12 @@ function useYoloStages(scene, gridN, color) {
       {
         badge: 'Шаг 1', title: 'Фото на входе',
         vis: (
-          <div className="text-center">
+          <div className="flex flex-col items-center text-center">
             <Portrait scene={scene} />
-            <div className="text-[11px] text-slate-400 mt-1.5">один проход — весь ответ</div>
+            <div className="text-[11px] text-slate-400 mt-1.5">модель смотрит на фото целиком</div>
           </div>
         ),
-        desc: 'YOLO смотрит на фото целиком один раз. За этот один проход она одновременно определяет ЧТО изображено и ГДЕ находится.',
+        desc: 'YOLO получает фото и пытается сразу найти объект.',
       },
       {
         badge: 'Шаг 2', title: `${gridN}×${gridN} клеток — каждая рисует рамку`,
@@ -482,11 +597,11 @@ function useYoloStages(scene, gridN, color) {
           <div className="flex flex-col items-center gap-1.5">
             <YoloBoxes scene={scene} gridN={gridN} showBest={false} color={color} />
             <div className="text-[11px] text-slate-500 text-center bg-blue-50 rounded-lg p-1.5 w-full">
-              каждая клетка рисует свою рамку<br />и называет уверенность
+              каждая часть фото предлагает свою рамку
             </div>
           </div>
         ),
-        desc: `Фото делится на ${gridN}×${gridN}=${gridN * gridN} клеток. Каждая клетка одновременно рисует рамку вокруг объекта который, как ей кажется, она видит. Получается хаос из ${gridN * gridN} рамок!`,
+        desc: `Фото делится на ${gridN * gridN} частей. Модель предлагает много рамок-кандидатов.`,
       },
       {
         badge: 'Шаг 3', title: 'Убираем все лишние рамки',
@@ -509,17 +624,17 @@ function useYoloStages(scene, gridN, color) {
             </div>
           </div>
         ),
-        desc: 'NMS (Non-Max Suppression) — фильтр здравого смысла. Смотрит на все рамки и оставляет только одну — с наибольшей уверенностью.',
+        desc: 'Из всех вариантов остаётся самая подходящая рамка.',
       },
       {
-        badge: 'Ответ', title: `${sc2.emoji} найден!`,
+        badge: 'Ответ', title: `Результат: ${sc2.label} ${sc2.emoji}`,
         vis: (
           <div className="w-full">
-            <Hint text="📍 x, y, ширина, высота + класс + уверенность" color={color} />
+            <Hint text="Модель показывает кто это и насколько уверена в ответе." color={color} />
             <ResultBars scene={scene} color={color} />
           </div>
         ),
-        desc: 'Финальный ответ: ЧТО (класс + проценты) + ГДЕ (координаты рамки). Всё за один проход — меньше 5 мс на GPU. Поэтому YOLO используют в реальном времени.',
+        desc: 'Чем выше процент, тем больше уверенность модели в этом варианте.',
       },
     ]
   }, [scene, gridN, color])

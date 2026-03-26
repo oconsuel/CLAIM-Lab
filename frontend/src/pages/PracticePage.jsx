@@ -94,6 +94,7 @@ export default function PracticePage() {
         {practice.id === 'trick-the-ai' && <VisionModelsExplorer />}
       </section>
 
+      {practice.id !== 'trick-the-ai' && (
       <section className="bg-white rounded-lg border border-slate-200 p-5 mb-6">
         <Heading as="h2" level="section">Пример данных</Heading>
         {practice.id === 'image-generation' ? (
@@ -174,6 +175,7 @@ export default function PracticePage() {
           </div>
         ) : null}
       </section>
+      )}
 
       <div className="flex gap-1 bg-slate-100 rounded-lg p-1 mb-6">
         {modes.map(m => (
@@ -193,7 +195,7 @@ export default function PracticePage() {
         {mode === 'researcher' && <ResearcherMode practice={practice} />}
       </section>
 
-      {practice.pedagogy && (
+      {practice.pedagogy && practice.id !== 'trick-the-ai' && (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           {practice.pedagogy.hints?.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">

@@ -6,7 +6,7 @@ import { Heading, Text, Button } from './ui'
 import { runResearcher } from '../api'
 
 export default function ResearcherMode({ practice }) {
-  if (practice.id === 'trick-the-ai') {
+  if (practice.id === 'trick-the-ai' || practice.id === 'image-generation') {
     return (
       <div>
         <Heading as="h3" level="block">Начинающий исследователь</Heading>

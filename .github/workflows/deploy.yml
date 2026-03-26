@@ -48,8 +48,32 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
             cd /var/www/lab
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u oconsuel --password-stdin
-            docker compose pull
-            docker compose up -d --no-build
+            docker-compose pull backend frontend
+
+            # Backend update with v1 fallback
+            if ! docker-compose up -d --no-build backend; then
+              echo "backend up failed, applying fallback recreate"
+              docker-compose stop backend || true
+              docker-compose rm -f backend || true
+              docker rm -f claim-lab-backend || true
+              docker-compose up -d --no-build backend
+            fi
+
+            # Frontend update with v1 fallback
+            if ! docker-compose up -d --no-build frontend; then
+              echo "frontend up failed, applying fallback recreate"
+              docker-compose stop frontend || true
+              docker-compose rm -f frontend || true
+              docker rm -f claim-lab-frontend || true
+              docker-compose up -d --no-build frontend
+            fi
+
+            # Nginx may hit Docker Hub pull limits; start using local image if already present.
+            docker-compose up -d --no-build nginx || true
+
+            # Final convergence
+            docker-compose up -d --no-build
             docker image prune -f
